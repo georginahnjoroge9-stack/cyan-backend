@@ -5,12 +5,14 @@ const bodyParser = require('body-parser');
 const dotenv = require('dotenv');
 
 dotenv.config();
-
 const app = express();
 
 // Middleware
 app.use(cors());
 app.use(bodyParser.json());
+
+const hostName = process.env.HOSTNAME || localhost;
+const port = process.env.PORT || 3000;
 
 // Database connection
 const connectDb = async () => {
@@ -33,11 +35,48 @@ const connectDb = async () => {
   }
 };
 
-// Call the database connection
+
+
+const postSchema = new mongoose.Schema({
+  caption: {
+    type: String,
+    required: [true, "Title is required"],
+    trim: true,
+    maxlenght:[200,"caption cannot exceed 200 characters"]
+  },
+  
+image:{
+  type:string,
+  required:[true,"Image URL is required"],
+  trim:true
+},
+category:{
+  type:string,
+  required:[true,"Category is required"],
+  trim:true
+},
+createdAt:{
+  type:Date,
+  default:Date.now
+}
+});
+
+
+const Posts =mongoose.model("Posts",postschema);
+
+
 connectDb();
 
-const hostname = process.env.HOSTNAME || "localhost";
-const port = process.env.PORT || 3000;
+app.get("/api/posts", async (req, res) => {
+  try {
+    const posts = await Posts.find() .sort({ createdAt: -1 });
+    res.json(posts);
+  } catch (err) {
+    console.error("Error fetching posts:", err);
+    res.status(500).json({ error: "Failed to fetch posts" });
+  }
+});
+
 
 // Routes
 app.get('/', (req, res) => {
@@ -48,4 +87,17 @@ app.get('/', (req, res) => {
 app.listen(port, () => {
   console.log(`Cyan Server is running at http://${hostname}:${port}/`);
   console.log("Cyan API armed and ready to serve requests");
+});
+
+
+app.post("/api/posts", async (req, res) => {
+  try {
+    const { caption, image, category } = req.body;
+    const newPost = new Posts({ caption, image, category });
+    await newPost.save();
+    res.status(201).json(newPost);
+  } catch (err) {
+    console.error("Error creating post:", err);
+    res.status(500).json({ error: "Failed to create post" });
+  }
 });
